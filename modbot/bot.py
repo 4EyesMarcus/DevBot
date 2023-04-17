@@ -2,9 +2,13 @@
 import nextcord
 from nextcord.ext import commands
 import wavelinkcord as wavelink
+from nextcord.shard import EventItem
+
 
 intents = nextcord.Intents.all()
-bot = commands.Bot(command_prefix="!", intents=intents)
+client = nextcord.Client()
+bot = commands.Bot(command_prefix="/", intents=intents)
+
 
 extensions = [
     "moderation",
@@ -15,15 +19,16 @@ if __name__ == "__main__":
     for ext in extensions:
         bot.load_extension(ext)
 
+#Start/Status
 @bot.event
 async def on_ready():
-    print("Bot Online")
+    print("Bot Ready!")
     bot.loop.create_task(on_node())
-
-async def on_node():
-    node: wavelink.Node = wavelink.Node(uri="http://lavalink.clxud.pro:2333", password="youshallnotpass")
-    await wavelink.NodePool.connect(client=bot, nodes=[node])
-    wavelink.Player.autoplay = True
+    await bot.change_presence(activity=nextcord.Activity(type=nextcord.ActivityType.listening, name=f"{songs[random.randint(0, 5)]}"))
+    
+async def on_ready():
+    node: wavelink.Node = wavelink.Node(uri='http://lavalink.clxud.pro:2333', password='youshallnotpass')
+    await wavelink.NodePool.connect(client=bot, nodes=[node], spotify=sc)
 
     
 #Join Message
@@ -41,4 +46,4 @@ async def on_member_remove(member):
 
 
 
-bot.run("")
+bot.run("MTA5Mjg5MzkzMjU0OTA2NjgwMg.GCqnGd.TTbIoXmtUI-fiPXypo6jNWvsNZ0hmNOXgDJhvw")
