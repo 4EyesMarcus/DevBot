@@ -10,6 +10,7 @@ class moderation(commands.Cog):
 #Moderation Commands
 
     @slash_command(name="kick", description="Kick a member of this discord", guild_ids=[1078827353444192406])
+    @commands.has_permissions(kick_members=True)
     async def kick(
         self, 
         ctx:Interaction, 
@@ -23,6 +24,7 @@ class moderation(commands.Cog):
 
 
     @slash_command(name="ban", description="Ban a member of this discord", guild_ids=[1078827353444192406])
+    @commands.has_permissions(ban_members=True)
     async def ban(
         self, 
         ctx:Interaction, 
@@ -35,6 +37,7 @@ class moderation(commands.Cog):
         
         
     @slash_command(name="unban", description="Unban a member of this discord", guild_ids=[1078827353444192406])
+    @commands.has_permissions(ban_members=True)
     async def unban(
         self, 
         ctx:Interaction, 
@@ -45,6 +48,7 @@ class moderation(commands.Cog):
         
 
     @slash_command(name="mute", description="Mute Member in text chat", guild_ids=[1078827353444192406])
+    @commands.has_permissions(mute_members=True)
     async def mute(self, ctx: Interaction, member: nextcord.Member, reason: str):
         muted_role = nextcord.utils.get(ctx.guild.roles, name="muted")
         await member.add_roles(muted_role)
@@ -53,6 +57,7 @@ class moderation(commands.Cog):
         
         
     @slash_command(name="unmute", description="Unmute a member in discord",guild_ids=[1078827353444192406])
+    @commands.has_permissions(mute_members=True)
     async def unmute(self, ctx:Interaction, member:nextcord.Member):
         muted_role = nextcord.utils.get(ctx.guild.roles, name="muted")
         await member.remove_roles(muted_role)
