@@ -1,7 +1,8 @@
 #Dependicies
 import nextcord
-from nextcord.ext import commands
 import wavelinkcord as wavelink
+from nextcord.ext import application_checks
+from nextcord.ext import commands
 from nextcord.shard import EventItem
 
 
@@ -17,6 +18,7 @@ extensions = [
 
 if __name__ == "__main__":
     for ext in extensions:
+        print(f"Loading {ext}")
         bot.load_extension(ext)
 
 #Start/Status
@@ -24,11 +26,11 @@ if __name__ == "__main__":
 async def on_ready():
     print("Bot Online")
     bot.loop.create_task(on_node())
+    await bot.change_presence(activity=nextcord.Activity(type=nextcord.ActivityType.listening, name=f"/help"))
     
 async def on_node():
-    node: wavelink.Node = wavelink.Node(uri="http://lavalink.clxud.pro:2333", password="youshallnotpass")
+    node: wavelink.Node = wavelink.Node(uri='http://lavalink.clxud.pro:2333', password='youshallnotpass')
     await wavelink.NodePool.connect(client=bot, nodes=[node])
-    wavelink.Player.autoplay = True
 
     
 #Join Message
@@ -46,4 +48,4 @@ async def on_member_remove(member):
 
 
 
-bot.run("")
+bot.run("MTA5NzU2Mjk2NjM2MDA2NDAxMQ.GSQhIg.nCaP0JKb2hpJKcSza7jSpbj14ziY46zM2sQu6I")

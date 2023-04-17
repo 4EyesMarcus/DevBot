@@ -1,8 +1,7 @@
+from asyncio import Event
 import nextcord
 from nextcord import slash_command, Interaction
 from nextcord.ext import commands
-import datetime
-import humanfriendly
 
 class moderation(commands.Cog):
     def __init__(self, bot):
@@ -44,19 +43,20 @@ class moderation(commands.Cog):
         await ctx.guild.unban(user=member)
         await ctx.response.send_message(f"{member} has been unbanned")
         
-        
+
     @slash_command(name="mute", description="Mute Member in text chat", guild_ids=[1078827353444192406])
-    async def mute(self, ctx:Interaction, member:Interaction, time, *, reason):
-        time = humanfriendly.parse_timespan(time)
-        await member.edit(timeout=nextcord.utils.utcnow()+datetime.timedelta(seconds=time))
-        await ctx.send(f"{member.member} has been muted because {reason}")
+    async def mute(self, ctx: Interaction, member: nextcord.Member, reason: str):
+        muted_role = nextcord.utils.get(ctx.guild.roles, name="muted")
+        await member.add_roles(muted_role)
+        await ctx.send(f"{member.mention} has been muted because {reason}")
         
         
         
     @slash_command(name="unmute", description="Unmute a member in discord",guild_ids=[1078827353444192406])
-    async def mute(self, ctx:Interaction, member:nextcord.Member):
-        await member.edit(timeout=None)
-        await ctx.send(f"{member.member} has been unmuted.")
+    async def unmute(self, ctx:Interaction, member:nextcord.Member):
+        muted_role = nextcord.utils.get(ctx.guild.roles, name="muted")
+        await member.remove_roles(muted_role)
+        await ctx.send(f"{member.mention} has been unmuted.")
         
         
         

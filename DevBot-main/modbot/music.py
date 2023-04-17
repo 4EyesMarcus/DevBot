@@ -1,11 +1,10 @@
 #Dependicies
+from asyncio import Event
 import nextcord
 from nextcord import slash_command
 from nextcord.ext import commands
 import wavelinkcord as wavelink
 from nextcord.shard import EventItem
-
-bot_version = "0.0.1"
 
 intents = nextcord.Intents.default()
 intents.voice_states = True
@@ -35,8 +34,7 @@ class music(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-
-@slash_command(guild_ids=[1078827353444192406])
+@slash_command(name="play", description="Play some music from youtube", guild_ids=[1078827353444192406])
 async def play(interaction: nextcord.Interaction, search: str):
     query = await wavelink.YouTubeTrack.search(search, return_first=True)
     destination = interaction.user.voice.channel
@@ -53,13 +51,14 @@ async def play(interaction: nextcord.Interaction, search: str):
         await vc.queue.put_wait(query)
         await interaction.response.send_message(f"Song was added to the queue")
 
-@slash_command(guild_ids=[1078827353444192406])
+@slash_command(name="skip", description="Skips the current song", guild_ids=[1078827353444192406])
 async def skip(interaction: nextcord.Interaction):
     vc: wavelink.Player = interaction.guild.voice_client
     await vc.stop()
     await interaction.response.send_message(f"Song was skipped!!")
 
-@slash_command(guild_ids=[1078827353444192406])
+
+@slash_command(name="pause", description="Pause the current song", guild_ids=[1078827353444192406])
 async def pause(interaction: nextcord.Interaction):
     vc: wavelink.Player = interaction.guild.voice_client
     if vc.is_playing():
@@ -68,7 +67,8 @@ async def pause(interaction: nextcord.Interaction):
     else:
         await interaction.response.send_message(f"Song is already paused!")
 
-@slash_command(guild_ids=[1078827353444192406])
+
+@slash_command(name="resume", description="Resume playing the current song", guild_ids=[1078827353444192406])
 async def resume(interaction: nextcord.Interaction):
     vc: wavelink.Player = interaction.guild.voice_client
     if vc.is_playing():
@@ -77,13 +77,15 @@ async def resume(interaction: nextcord.Interaction):
         await vc.resume()
         await interaction.response.send_message(f"Song is resumed!")
 
-@slash_command(guild_ids=[1078827353444192406])
+
+@slash_command(name="leave", description="Leaves the vc", guild_ids=[1078827353444192406])
 async def leave(interaction: nextcord.Interaction):
     vc: wavelink.Player = interaction.guild.voice_client
     await vc.disconnect()
     await interaction.response.send_message(f"I am disconnected!")
 
-@slash_command(guild_ids=[])
+
+@slash_command(name="queue", description="Shows the current song queue", guild_ids=[1078827353444192406])
 async def queue(interaction: nextcord.Interaction):
     vc: wavelink.Player = interaction.guild.voice_client
     if not vc.queue.is_empty:
