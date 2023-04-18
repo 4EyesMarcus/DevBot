@@ -8,6 +8,7 @@ from nextcord.shard import EventItem
 
 intents = nextcord.Intents.all()
 client = nextcord.Client()
+
 bot = commands.Bot(command_prefix="/", intents=intents)
 
 
@@ -48,4 +49,4 @@ async def on_member_remove(member):
 
 
 
-bot.run("")
+bot.run("MTA5NzU2Mjk2NjM2MDA2NDAxMQ.Gs0N4I.wGJjSf_5CksumnJxKvzP8gxOFAfqx-ZHcVpd1Y")

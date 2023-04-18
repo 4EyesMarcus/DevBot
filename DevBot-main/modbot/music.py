@@ -1,9 +1,11 @@
 #Dependicies
 from asyncio import Event
 import nextcord
-from nextcord import slash_command
+from nextcord import slash_command, Interaction, Embed
+from nextcord.ext.commands import Bot
 from nextcord.ext import commands
 import wavelinkcord as wavelink
+from wavelinkcord.player import Player
 from nextcord.shard import EventItem
 
 intents = nextcord.Intents.default()
@@ -29,10 +31,30 @@ intents.members = True
 intents.message_content = True
 intents.presences = True
 
+Client = nextcord.Client()
 
 class music(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+
+
+    @commands.Cog.listener()
+    async def on_voice_state_update(self, member, before, after):
+        if not member.bot and after.channel:
+            vc = member.guild.voice_client
+            if vc and vc.channel == after.channel:
+                return
+            await self.join_voice_channel(after.channel)
+
+    async def join_voice_channel(self, channel):
+        if not channel.guild.voice_client:
+            player = await self.bot.wavelink.get_player(channel=channel, cls=Player)
+            await channel.connect(reconnect=True)
+            player.store("channel", channel)
+            await player.set_volume(50)
+        else:
+            await channel.guild.voice_client.move_to(channel)
+
 
 @slash_command(name="play", description="Play some music from youtube", guild_ids=[1078827353444192406])
 async def play(interaction: nextcord.Interaction, search: str):
