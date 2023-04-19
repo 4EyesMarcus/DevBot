@@ -42,4 +42,4 @@ async def on_member_remove(member):
 
 
 
-bot.run("MTA5NzU2Mjk2NjM2MDA2NDAxMQ.GJe21h.mbc9nt-XYN8BvX95cE6-_AEglsGyxa5BPMNSnI")
+bot.run(TOKEN)
