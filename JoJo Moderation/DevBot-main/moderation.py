@@ -220,17 +220,27 @@ class moderation(commands.Cog):
         
             await ctx.send(embed=words_embed)
 
-
     @slash_command(name="add_word", description="Add a new word to the profanity list")
     async def add_word(self, ctx: Interaction, words: str):
         profanity_file_path = os.path.join(os.path.dirname(__file__), 'profanity.txt')
-        with open(profanity_file_path, "r+") as profanity_file:
+        added_words_file_path = os.path.join(os.path.dirname(__file__), 'added_words.json')
+        with open(profanity_file_path, "r+") as profanity_file, open(added_words_file_path, "r+") as added_words_file:
             words_list = profanity_file.readlines()
+            added_words_dict = json.load(added_words_file)
+
             if words.lower() + '\n' in words_list:
                 await ctx.send("This word is already in the profanity list.")
             else:
-                profanity_file.write(words.lower() + '\n')
-                await ctx.send(f"{words} has been added to the profanity list.")
+                guild_id = str(ctx.guild.id)
+                if guild_id not in added_words_dict:
+                    added_words_dict[guild_id] = []
+                if words.lower() not in added_words_dict[guild_id]:
+                    added_words_dict[guild_id].append(words.lower())
+                    added_words_file.seek(0)
+                    json.dump(added_words_dict, added_words_file, indent=4)
+                    await ctx.send(f"{words} has been added to the profanity list for this guild.")
+                else:
+                    await ctx.send("This word has already been added to the profanity list for this guild.")
 
 
     @slash_command(name="change_muted_role", description="Change the muted role for this server")
