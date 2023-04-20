@@ -1,5 +1,5 @@
-ProfanityBot
-ProfanityBot is a Discord bot that automatically detects and handles messages containing profanity. It keeps track of user offenses and applies timeouts or bans based on the number of offenses.
+
+JoJo Moderation bot is a Discord bot that automatically detects and handles messages containing profanity. It keeps track of user offenses and applies timeouts or bans based on the number of offenses. Mainly used for streamer/youtube communities.
 
 Features
 Automatic detection of profanity in messages
