@@ -4,6 +4,8 @@ from nextcord import slash_command, Interaction
 from nextcord.ext import commands
 import os
 import json
+import time
+import asyncio
 
 class moderation(commands.Cog):
     def __init__(self, bot):
@@ -13,21 +15,37 @@ class moderation(commands.Cog):
         self.profanity_file_path = os.path.join(os.path.dirname(__file__), 'profanity.txt')
         self.whitelist_file_path = os.path.join(os.path.dirname(__file__), 'whitelist.json')
         self.warnings_file_path = os.path.join(os.path.dirname(__file__), 'user_warnings.json')
+        self.settings_file_path = os.path.join(os.path.dirname(__file__), 'settings.json')
 
+# Loading Data Files
         try:
             with open(self.profanity_file_path, 'r') as f:
                 self.profanity = f.read().splitlines()
         except FileNotFoundError:
             print("File not found: profanity.txt")
             self.profanity = []
-
         try:
             with open(self.whitelist_file_path, 'r') as f:
                 self.whitelist = json.load(f)
         except FileNotFoundError:
             print("File not found: whitelist.json")
             self.whitelist = {}
+        try:
+            with open(self.warnings_file_path, 'r') as f:
+                self.data = json.load(f)
+        except FileNotFoundError:
+            self.data = {}
+#Defines settings        
+    def get_settings():
+        with open("settings.json", "r") as f:
+            settings = json.load(f)
+        return settings
 
+    def save_settings(settings):
+        with open("settings.json", "w") as f:
+            json.dump(settings, f)
+
+#Moderation Commands
 
     @slash_command(name="whitelist", description="Add or remove a word from the whitelist")
     async def whitelist(self, ctx: Interaction, action: str = None, word: str = None):
@@ -67,7 +85,6 @@ class moderation(commands.Cog):
             with open(whitelist_file_path, 'w') as f:
                 json.dump(self.whitelist, f)
             await ctx.send(f"{word} has been added to the whitelist.")
-
         elif action == "remove":
             if word not in self.whitelist[guild_id]:
                 await ctx.send(f"{word} is not currently whitelisted.")
@@ -77,14 +94,8 @@ class moderation(commands.Cog):
                 json.dump(self.whitelist, f)
             with open(self.profanity_file_path, 'a') as f:
                 f.write('\n' + word)
-        await ctx.send(f"{word} has been removed from the whitelist.")
+            await ctx.send(f"{word} has been removed from the whitelist.")
 
-
-
-
-
-
-#Moderation Commands
 
     @slash_command(name="ban", description="Ban a member of this discord")
     async def ban(
@@ -222,6 +233,36 @@ class moderation(commands.Cog):
                 await ctx.send(f"{words} has been added to the profanity list.")
 
 
+    @slash_command(name="change_muted_role", description="Change the muted role for this server")
+    async def change_muted_role(self, ctx: Interaction, role: nextcord.Role):
+        settings_file_path = os.path.join(os.path.dirname(__file__), 'settings.json')
+        if not ctx.user.guild_permissions.administrator:
+            await ctx.send("You do not have the required permissions to use this command.")
+            return
+
+    # Get the guild object
+        guild = ctx.guild
+
+    # Open the settings file
+        with open(settings_file_path, "r+") as f:
+        # Load the existing settings
+            f.seek(0)
+            settings = json.load(f)
+
+        # Check if the guild already exists in the settings
+            if guild.id not in settings:
+                settings[guild.id] = {}
+
+        # Update the muted role for the guild
+            settings[guild.id]["muted_role_id"] = role.id
+
+        # Save the updated settings
+            f.seek(0)
+            json.dump(settings, f, indent=4)
+
+        await ctx.send(f"The muted role for this server has been set to {role.mention}")
+
+
     @slash_command(name="help", description="Displays all available commands")
     async def help(
         self, 
@@ -242,11 +283,27 @@ class moderation(commands.Cog):
         \n/add_word - Add a custom word to the profanity list```""")
 
 
-#AutoMod
+# AutoMod
+    async def on_message(self, message: nextcord.Message):
+        if message.author == self.user:
+            return
+
+        if not message.guild:
+            return
+
+        ctx = await self.get_context(message)
+        await self.check_message(ctx=ctx, message=message)
+
+
+
+
     async def check_message(self, message: nextcord.Message):
         profanity_file_path = os.path.join(os.path.dirname(__file__), 'profanity.txt')
         whitelist_file_path = os.path.join(os.path.dirname(__file__), 'whitelist.json')
         warnings_file_path = os.path.join(os.path.dirname(__file__), 'user_warnings.json')
+        settings_file_path = os.path.join(os.path.dirname(__file__), 'settings.json')
+
+        timeouts = {2: 300, 3: 3600, 4: 604800, 5: -1}  # Map offense count to timeout duration in seconds. -1 for ban.
 
         try:
             with open(profanity_file_path, 'r') as f:
@@ -265,37 +322,107 @@ class moderation(commands.Cog):
         try:
             with open(warnings_file_path, 'r') as f:
                 data = json.load(f)
-                user_warnings = data.get(str(message.author.id), 0)
+                warning_data = data.get(str(message.author.id))
+                user_warnings = warning_data.get("offenses") if warning_data else 0
+                print(f"user_warnings before increment: {user_warnings}")
         except FileNotFoundError:
             print("File not found: user_warnings.json")
             user_warnings = 0
 
+        try:
+            with open(settings_file_path, "r") as f:
+                settings = json.load(f)
+                muted_role_id = settings.get(str(message.guild.id), {}).get("muted_role_id")
+        except FileNotFoundError:
+            print("File not found: settings.json")
+            muted_role_id = None
+
+        if muted_role_id:
+            muted_role = message.guild.get_role(muted_role_id)
+
         for word in message.content.lower().split():
-            if word in self.profanity and word not in self.whitelist:
-                if user_warnings >= 2:
-                    muted_role = nextcord.utils.get(message.guild.roles, name='muted')
-                    if muted_role:
-                        await message.author.add_roles(muted_role, reason="Message contained a banned word.")
-                        await message.channel.send(f"{message.author.mention}, you have been muted for using a banned word.")
-                    else:
-                        await message.channel.send("Muted role not found.")
-                elif user_warnings >= 1:
-                    await message.channel.send(f"{message.author.mention}, your message contains a banned word. This is your final warning before being muted.")
+            if word in profanity and word not in whitelist:
+                await message.delete()
+                if user_warnings >= 5:
+                    # If the user has reached the maximum number of offenses, ban them
+                    await message.channel.send(f"{message.author.mention}, you have been banned for repeated offenses.")
+                    await message.author.ban()
+                    del data[str(message.author.id)]
                 else:
-                    await message.channel.send(f"{message.author.mention}, your message contains a banned word. Please refrain from using it.")
+                    # Otherwise, apply a timeout and increment the user's offense count
+                    timeout_duration = timeouts.get(user_warnings + 1, 0)
+                    if user_warnings >= 5:
+                        # If the user has reached the maximum number of offenses, ban them
+                        await message.channel.send(f"{message.author.mention}, you have been banned for repeated offenses.")
+                        await message.author.ban()
+                        del data[str(message.author.id)]
+                    else:
+                        data[str(message.author.id)] = {"timeout_end_time": time.time() + timeout_duration, "offenses": user_warnings + 1}
+                        print(f"user_warnings after increment: {user_warnings + 1}")
+                        if user_warnings == 0:
+                            await message.channel.send(f"{message.author.mention}, your message contained a banned word. This is your warning before being timed out.")
+                        elif user_warnings == 1:
+                            await message.channel.send(f"{message.author.mention}, your message contained a banned word for not listening, 5m timeout")
+                        elif user_warnings == 2:
+                            await message.channel.send(f"{message.author.mention}, your message contained a banned word for not listening, 1 hour timeout.")
+                        elif user_warnings == 3:
+                            await message.channel.send(f"{message.author.mention}, your message contained a banned word for not listening, 1 week timeout.")
+                        elif user_warnings == 4:
+                            await message.channel.send(f"{message.author.mention}, you still dont know how to listen so enjoy the ban <3")
+                            await message.author.ban(reason="Reached maximum number of offenses")
+                        if timeout_duration > 0:
+                            await message.author.add_roles(muted_role)
+                            try:
+                                await asyncio.sleep(timeout_duration)
+                            finally:
+                                await message.author.remove_roles(muted_role)
+                        with open(warnings_file_path, 'w') as f:
+                            json.dump(data, f, indent=None)
 
-                user_warnings += 1
-                data[str(message.author.id)] = user_warnings
-
-                with open(warnings_file_path, 'w') as f:
-                    json.dump(data, f)
-
-                break
 
 
+    @slash_command(description="Reset the warnings for a specified member.")
+    async def resetwarnings(self, ctx: Interaction, member: nextcord.Member = None):
+        warnings_file_path = os.path.join(os.path.dirname(__file__), 'user_warnings.json')
+        settings_file_path = os.path.join(os.path.dirname(__file__), 'settings.json')
+
+        if member is None:
+            member = ctx.author
+
+        try:
+            with open(warnings_file_path, 'r') as f:
+                data = json.load(f)
+                if str(member.id) in data and data[str(member.id)] != 0:
+                    data[str(member.id)] = 0  # set warnings to 0
+                    with open(warnings_file_path, 'w') as f:
+                        json.dump(data, f)
+                    await ctx.send(f"Warnings for {member.mention} have been reset.")
+                else:
+                    await ctx.send(f"{member.mention} already has 0 warnings.")
+        except FileNotFoundError:
+            print("File not found: user_warnings.json")
+            await ctx.send("Failed to reset warnings.")
+
+        try:
+            with open(settings_file_path, "r") as f:
+                settings = json.load(f)
+                muted_role_id = settings.get(str(ctx.guild.id), {}).get("muted_role_id")
+        except FileNotFoundError:
+            print("File not found: settings.json")
+            muted_role_id = None
+
+        muted_role = None
+        if muted_role_id:
+            muted_role = ctx.guild.get_role(muted_role_id)
+
+        if muted_role and muted_role in member.roles:
+            await member.remove_roles(muted_role)
+            await ctx.send(f"{member.mention} has been unmuted.")
 
 
-   
+
+
+
 
 
 
