@@ -149,27 +149,6 @@ class moderation(commands.Cog):
             await member.remove_roles(muted_role)
             await ctx.send(f"{member.mention} has been unmuted.")
         
-        
-        
-        
-    @slash_command(name="help", description="Displays all available commands")
-    async def help(
-        self, 
-        ctx:Interaction, 
-    ):
-        await ctx.response.send_message(
-    """```General Commands
-        \n/help - displays all the available commands
-        \n/ban - bans a member of the discord
-        \n/kick - Kicks a member from the discord
-        \n/unban - Unbans a member that was banned
-        \n/purge - Delete a specified number of messages
-        \n/whitelist - remove or add words to the whitelist
-        \n/mute - mute a specific member in discord
-        \n/unmute - unmute a specific member in discord
-        \n/list_banned - List all profanity words
-        \n/list_whitelisted - List all whitelisted words```""")
-        
 
     @slash_command(name="purge", description="Delete a specified number of messages")
     async def purge(self, interaction: nextcord.Interaction, limit: int):
@@ -243,17 +222,24 @@ class moderation(commands.Cog):
                 await ctx.send(f"{words} has been added to the profanity list.")
 
 
-
-
-
-
-
-
-
-
-
-
-
+    @slash_command(name="help", description="Displays all available commands")
+    async def help(
+        self, 
+        ctx:Interaction, 
+    ):
+        await ctx.response.send_message(
+    """```General Commands
+        \n/help - displays all the available commands
+        \n/ban - bans a member of the discord
+        \n/kick - Kicks a member from the discord
+        \n/unban - Unbans a member that was banned
+        \n/purge - Delete a specified number of messages
+        \n/whitelist - remove or add words to the whitelist
+        \n/mute - mute a specific member in discord
+        \n/unmute - unmute a specific member in discord
+        \n/list_banned - List all profanity words
+        \n/list_whitelisted - List all whitelisted words
+        \n/add_word - Add a custom word to the profanity list```""")
 
 
 #AutoMod
