@@ -231,6 +231,17 @@ class moderation(commands.Cog):
             await ctx.send(embed=words_embed)
 
 
+    @slash_command(name="add_word", description="Add a new word to the profanity list")
+    async def add_word(self, ctx: Interaction, words: str):
+        profanity_file_path = os.path.join(os.path.dirname(__file__), 'profanity.txt')
+        with open(profanity_file_path, "r+") as profanity_file:
+            words_list = profanity_file.readlines()
+            if words.lower() + '\n' in words_list:
+                await ctx.send("This word is already in the profanity list.")
+            else:
+                profanity_file.write(words.lower() + '\n')
+                await ctx.send(f"{words} has been added to the profanity list.")
+
 
 
 
