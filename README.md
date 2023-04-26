@@ -68,3 +68,5 @@ In addition, the bot includes the following commands:
 /remove_support_role - Remove a support role from your discord
 
 /set_logging_channel - Set the channel where all ticket logs will go
+
+/ban_link - Bans a link from the discord and erases the link from the message
