@@ -8,6 +8,7 @@ Whitelist system for words that shouldn't trigger offenses
 Mute role integration for timeouts
 Ability to reset warnings for a specified member
 Ticket system for users to request support and get their issues resolved by staff
+
 Setup:
 
 Clone the repository
@@ -33,20 +34,37 @@ The Ticket class in tickets.py handles the ticket system and includes methods fo
 In addition, the bot includes the following commands:
 
 /help - displays all the available commands
+
 /ban - bans a member of the discord
+
 /kick - Kicks a member from the discord
+
 /unban - Unbans a member that was banned
+
 /purge - Delete a specified number of messages
+
 /mute - mute a specific member in discord
+
 /unmute - unmute a specific member in discord
+
 /list_banned - List all profanity words
+
 /list_whitelisted - List all whitelisted words
+
 /add_word - Add a custom word to the profanity list
+
 /remove_word - Remove your custom word from profanity list
+
 /whitelist - remove or add words to the whitelist
+
 /newticket - Makes a new ticket under category ticket
+
 !close - Closes the ticket (Only creator of the ticket can close)
+
 /support_roles - View the support roles for your discord
+
 /add_support_role - Add a support role for your discord
+
 /remove_support_role - Remove a support role from your discord
+
 /set_logging_channel - Set the channel where all ticket logs will go
