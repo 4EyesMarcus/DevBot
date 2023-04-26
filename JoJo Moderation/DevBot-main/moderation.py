@@ -18,6 +18,7 @@ class moderation(commands.Cog):
         self.warnings_file_path = os.path.join(os.path.dirname(__file__), 'user_warnings.json')
         self.settings_file_path = os.path.join(os.path.dirname(__file__), 'settings.json')
         self.words_file_path = os.path.join(os.path.dirname(__file__), 'added_words.json')
+        self.links_file_path = os.path.join(os.path.dirname(__file__), 'links.json')
 
 # Loading Data Files
         try:
@@ -319,7 +320,6 @@ class moderation(commands.Cog):
         \n/purge - Delete a specified number of messages
         \n/mute - mute a specific member in discord
         \n/unmute - unmute a specific member in discord
-        \n Commands below are Admin Only!
         \n/list_banned - List all profanity words
         \n/list_whitelisted - List all whitelisted words
         \n/add_word - Add a custom word to the profanity list
@@ -330,7 +330,8 @@ class moderation(commands.Cog):
         \n/support_roles - View the support roles for your discord
         \n/add_support_role - Add a support role for your discord
         \n/remove_support_role - Remove a support role from your discord
-        \n/set_logging_channel - Set the channel where all ticket logs will go```""")
+        \n/set_logging_channel - Set the channel where all ticket logs will go
+        \n/ban_link - Bans a link from the discord and erases the link from the message```""")
 
 
 # AutoMod
@@ -344,9 +345,6 @@ class moderation(commands.Cog):
         ctx = await self.get_context(message)
         await self.check_message(ctx=ctx, message=message)
         await self.check_message(message)
-
-
-
 
 
     async def check_message(self, message: nextcord.Message):
@@ -490,6 +488,34 @@ class moderation(commands.Cog):
             await ctx.send(f"{member.mention} has been unmuted.")
 
 
+    @slash_command(name="ban_link", description="Ban a link from the discord")
+    async def ban_link(self, ctx, link: str):
+        links_file_path = os.path.join(os.path.dirname(__file__), 'links.json')
+        guild_id = ctx.guild.id
+        banned_links_file = links_file_path
+
+        try:
+            with open(banned_links_file, "r") as file:
+                banned_links = json.load(file)
+                print("File Opened")
+        except FileNotFoundError:
+            banned_links = {}
+            print("file not found")
+
+        if str(guild_id) not in banned_links:
+            banned_links[str(guild_id)] = []
+
+        if link not in banned_links[str(guild_id)]:
+            banned_links[str(guild_id)].append(link)
+
+            with open(banned_links_file, "w") as file:
+                json.dump(banned_links, file, indent=4)
+                print("File edited and saved")
+
+            await ctx.send(f"That link is banned from this Discord: {link}")
+        else:
+            await ctx.send(f"That link is already banned from this Discord: {link}")
+
 
 
 
@@ -501,7 +527,26 @@ class moderation(commands.Cog):
     async def on_message(self, message: nextcord.Message):
         if message.author.bot:
             return
+
+        links_file_path = os.path.join(os.path.dirname(__file__), 'links.json')
+        guild_id = message.guild.id
+
+        try:
+            with open(links_file_path, "r") as file:
+                banned_links = json.load(file)
+        except FileNotFoundError:
+            banned_links = {}
+
+        guild_banned_links = banned_links.get(str(guild_id), [])
+
+        for link in guild_banned_links:
+            if link in message.content:
+                await message.delete()
+                await message.channel.send(f"{message.author.mention}, that link is banned from this Discord.")
+                break
+
         await self.check_message(message)
+
         
 def setup(bot : commands.Bot):
     bot.add_cog(moderation(bot))
