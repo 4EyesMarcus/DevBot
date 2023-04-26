@@ -6,6 +6,7 @@ import os
 import json
 import time
 import asyncio
+import re
 
 class moderation(commands.Cog):
     def __init__(self, bot):
@@ -16,6 +17,7 @@ class moderation(commands.Cog):
         self.whitelist_file_path = os.path.join(os.path.dirname(__file__), 'whitelist.json')
         self.warnings_file_path = os.path.join(os.path.dirname(__file__), 'user_warnings.json')
         self.settings_file_path = os.path.join(os.path.dirname(__file__), 'settings.json')
+        self.words_file_path = os.path.join(os.path.dirname(__file__), 'added_words.json')
 
 # Loading Data Files
         try:
@@ -166,11 +168,15 @@ class moderation(commands.Cog):
         if not interaction.channel.permissions_for(interaction.user).manage_messages:
             await interaction.response.send_message("You do not have permission to delete messages.", ephemeral=True)
             return
-        await interaction.channel.purge(limit=limit + 1)
-        await interaction.response.send_message(f"Deleted {limit} messages.", ephemeral=True)
+        messages_to_delete = await interaction.channel.history(limit=limit + 1).flatten()
+        await interaction.channel.delete_messages(messages_to_delete)
+
 
     @slash_command(name="list_banned", description="Lists all profanity words.")
     async def list_banned(self, ctx: Interaction):
+        if not ctx.user.guild_permissions.administrator:
+            await ctx.send("You do not have the required permissions to use this command.")
+            return
     # Get the full path to the profanity file
         profanity_file_path = os.path.join(os.path.dirname(__file__), 'profanity.txt')
 
@@ -195,6 +201,9 @@ class moderation(commands.Cog):
 
     @slash_command(name="list_whitelisted", description="Lists all whitelisted words.")
     async def list_whitelisted(self, ctx: Interaction):
+        if not ctx.user.guild_permissions.administrator:
+            await ctx.send("You do not have the required permissions to use this command.")
+            return
     # Get the full path to the whitelist file
         whitelist_file_path = os.path.join(os.path.dirname(__file__), 'whitelist.json')
 
@@ -222,6 +231,9 @@ class moderation(commands.Cog):
 
     @slash_command(name="add_word", description="Add a new word to the profanity list")
     async def add_word(self, ctx: Interaction, words: str):
+        if not ctx.user.guild_permissions.administrator:
+            await ctx.send("You do not have the required permissions to use this command.")
+            return
         profanity_file_path = os.path.join(os.path.dirname(__file__), 'profanity.txt')
         added_words_file_path = os.path.join(os.path.dirname(__file__), 'added_words.json')
         with open(profanity_file_path, "r+") as profanity_file, open(added_words_file_path, "r+") as added_words_file:
@@ -241,6 +253,26 @@ class moderation(commands.Cog):
                     await ctx.send(f"{words} has been added to the profanity list for this guild.")
                 else:
                     await ctx.send("This word has already been added to the profanity list for this guild.")
+
+    @slash_command(name="remove_word", description="Remove a word from the guild-specific profanity list")
+    async def remove_word(self, ctx: Interaction, word: str):
+        added_words_file_path = os.path.join(os.path.dirname(__file__), 'added_words.json')
+        if not ctx.user.guild_permissions.administrator:
+            await ctx.send("You do not have the required permissions to use this command.")
+            return
+        with open(added_words_file_path, "r+") as added_words_file:
+            added_words_dict = json.load(added_words_file)
+
+            guild_id = str(ctx.guild.id)
+            if guild_id in added_words_dict and word.lower() in added_words_dict[guild_id]:
+                added_words_dict[guild_id].remove(word.lower())
+                added_words_file.seek(0)
+                added_words_file.truncate()
+                json.dump(added_words_dict, added_words_file, indent=4)
+                await ctx.send(f"{word} has been removed from the profanity list for this guild.")
+            else:
+                await ctx.send("This word is not in the profanity list for this guild.")
+
 
 
     @slash_command(name="change_muted_role", description="Change the muted role for this server")
@@ -285,12 +317,20 @@ class moderation(commands.Cog):
         \n/kick - Kicks a member from the discord
         \n/unban - Unbans a member that was banned
         \n/purge - Delete a specified number of messages
-        \n/whitelist - remove or add words to the whitelist
         \n/mute - mute a specific member in discord
         \n/unmute - unmute a specific member in discord
+        \n Commands below are Admin Only!
         \n/list_banned - List all profanity words
         \n/list_whitelisted - List all whitelisted words
-        \n/add_word - Add a custom word to the profanity list```""")
+        \n/add_word - Add a custom word to the profanity list
+        \n/remove_word - Remove your custom word from profanity list
+        \n/whitelist - remove or add words to the whitelist
+        \n/newticket - Makes a new ticket under category ticket
+        \n!close - Closes the ticket (Only creator of the ticket can close)
+        \n/support_roles - View the support roles for your discord
+        \n/add_support_role - Add a support role for your discord
+        \n/remove_support_role - Remove a support role from your discord
+        \n/set_logging_channel - Set the channel where all ticket logs will go```""")
 
 
 # AutoMod
@@ -303,6 +343,8 @@ class moderation(commands.Cog):
 
         ctx = await self.get_context(message)
         await self.check_message(ctx=ctx, message=message)
+        await self.check_message(message)
+
 
 
 
@@ -312,6 +354,9 @@ class moderation(commands.Cog):
         whitelist_file_path = os.path.join(os.path.dirname(__file__), 'whitelist.json')
         warnings_file_path = os.path.join(os.path.dirname(__file__), 'user_warnings.json')
         settings_file_path = os.path.join(os.path.dirname(__file__), 'settings.json')
+        words_file_path = os.path.join(os.path.dirname(__file__), 'added_words.json')
+        if message.author.guild_permissions.manage_messages or message.author.guild_permissions.ban_members:
+            return
 
         timeouts = {2: 300, 3: 3600, 4: 604800, 5: -1}  # Map offense count to timeout duration in seconds. -1 for ban.
 
@@ -321,6 +366,18 @@ class moderation(commands.Cog):
         except FileNotFoundError:
             print("File not found: profanity.txt")
             return
+
+        try:
+            with open(words_file_path, 'r') as f:
+                guild_words_data = json.load(f)
+                guild_banned_words = guild_words_data.get(str(message.guild.id), [])
+        except FileNotFoundError:
+            print("File not found: added_words.json")
+            guild_banned_words = []
+
+        banned_words = set(word for word in profanity + guild_banned_words if word)
+
+
 
         try:
             with open(whitelist_file_path, 'r') as f:
@@ -345,49 +402,49 @@ class moderation(commands.Cog):
                 muted_role_id = settings.get(str(message.guild.id), {}).get("muted_role_id")
         except FileNotFoundError:
             print("File not found: settings.json")
-            muted_role_id = None
 
+        muted_role = None
         if muted_role_id:
             muted_role = message.guild.get_role(muted_role_id)
 
-        for word in message.content.lower().split():
-            if word in profanity and word not in whitelist:
-                await message.delete()
-                if user_warnings >= 5:
-                    # If the user has reached the maximum number of offenses, ban them
-                    await message.channel.send(f"{message.author.mention}, you have been banned for repeated offenses.")
-                    await message.author.ban()
-                    del data[str(message.author.id)]
-                else:
-                    # Otherwise, apply a timeout and increment the user's offense count
-                    timeout_duration = timeouts.get(user_warnings + 1, 0)
-                    if user_warnings >= 5:
-                        # If the user has reached the maximum number of offenses, ban them
-                        await message.channel.send(f"{message.author.mention}, you have been banned for repeated offenses.")
-                        await message.author.ban()
-                        del data[str(message.author.id)]
-                    else:
-                        data[str(message.author.id)] = {"timeout_end_time": time.time() + timeout_duration, "offenses": user_warnings + 1}
-                        print(f"user_warnings after increment: {user_warnings + 1}")
-                        if user_warnings == 0:
-                            await message.channel.send(f"{message.author.mention}, your message contained a banned word. This is your warning before being timed out.")
-                        elif user_warnings == 1:
-                            await message.channel.send(f"{message.author.mention}, your message contained a banned word for not listening, 5m timeout")
-                        elif user_warnings == 2:
-                            await message.channel.send(f"{message.author.mention}, your message contained a banned word for not listening, 1 hour timeout.")
-                        elif user_warnings == 3:
-                            await message.channel.send(f"{message.author.mention}, your message contained a banned word for not listening, 1 week timeout.")
-                        elif user_warnings == 4:
-                            await message.channel.send(f"{message.author.mention}, you still dont know how to listen so enjoy the ban <3")
-                            await message.author.ban(reason="Reached maximum number of offenses")
-                        if timeout_duration > 0:
-                            await message.author.add_roles(muted_role)
-                            try:
-                                await asyncio.sleep(timeout_duration)
-                            finally:
-                                await message.author.remove_roles(muted_role)
-                        with open(warnings_file_path, 'w') as f:
-                            json.dump(data, f, indent=None)
+        banned_word_pattern = r"\b(?:{})\b".format("|".join(map(re.escape, banned_words)))
+        banned_word_match = re.search(banned_word_pattern, message.content.lower())
+
+        if banned_word_match and banned_word_match.group() not in whitelist:
+            await message.delete()
+
+            if muted_role is None:
+                await message.channel.send(f"{message.author.mention}, Please contact the admin of the server to activate the automod feature.")
+                return
+
+            if user_warnings >= 5:
+                await message.channel.send(f"{message.author.mention}, you have been banned for repeated offenses.")
+                await message.author.ban()
+                del data[str(message.author.id)]
+            else:
+                timeout_duration = timeouts.get(user_warnings + 1, 0)
+                data[str(message.author.id)] = {"timeout_end_time": time.time() + timeout_duration, "offenses": user_warnings + 1}
+                print(f"user_warnings after increment: {user_warnings + 1}")
+                if user_warnings == 0:
+                    await message.channel.send(f"{message.author.mention}, your message contained a banned word. This is your warning before being timed out.")
+                elif user_warnings == 1:
+                    await message.channel.send(f"{message.author.mention}, your message contained a banned word for not listening, 5m timeout")
+                elif user_warnings == 2:
+                    await message.channel.send(f"{message.author.mention}, your message contained a banned word for not listening, 1 hour timeout.")
+                elif user_warnings == 3:
+                    await message.channel.send(f"{message.author.mention}, your message contained a banned word for not listening, 1 week timeout.")
+                elif user_warnings == 4:
+                    await message.channel.send(f"{message.author.mention}, you still dont know how to listen so enjoy the ban <3")
+                    await message.author.ban(reason="Reached maximum number of offenses")
+                if timeout_duration > 0:
+                    await message.author.add_roles(muted_role)
+                    try:
+                        await asyncio.sleep(timeout_duration)
+                    finally:
+                        await message.author.remove_roles(muted_role)
+                with open(warnings_file_path, 'w') as f:
+                    json.dump(data, f, indent=None)
+
 
 
 
@@ -395,6 +452,9 @@ class moderation(commands.Cog):
     async def resetwarnings(self, ctx: Interaction, member: nextcord.Member = None):
         warnings_file_path = os.path.join(os.path.dirname(__file__), 'user_warnings.json')
         settings_file_path = os.path.join(os.path.dirname(__file__), 'settings.json')
+        if not ctx.user.guild_permissions.administrator:
+            await ctx.send("You do not have the required permissions to use this command.")
+            return
 
         if member is None:
             member = ctx.author
