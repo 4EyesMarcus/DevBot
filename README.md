@@ -70,3 +70,5 @@ In addition, the bot includes the following commands:
 /set_logging_channel - Set the channel where all ticket logs will go
 
 /ban_link - Bans a link from the discord and erases the link from the message
+
+/set_changelog_channel - Sets the channel for the bot to send updates for it in
