@@ -8,6 +8,29 @@ import time
 import asyncio
 import re
 
+YOUR_DISCORD_USERNAME = 595415508283686948  # Replace with your actual Discord ID
+
+# Function to return the default blocked links
+def default_blocked_links():
+    return [
+        "https://www.pornhub.com",
+        "https://www.onlyfans.com",
+        "https://www.pornlive.com",
+        "https://www.xVideos.com",
+        "https://www.xHamster.com",
+        "https://www.XNXX.com",
+        "https://www.YouPorn.com",
+        "https://www.HClips.com",
+        "https://www.porn.com",
+        "https://www.tnaflix.com",
+        "https://www.tube8.com",
+        "https://www.spankbang.com",
+        "https://www.brazzers.com"
+    ]
+
+# Function to add a new server with default blocked links
+def add_new_server(server_id: str, blocked_links_dict: dict):
+    blocked_links_dict[server_id] = default_blocked_links()
 class moderation(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -19,6 +42,7 @@ class moderation(commands.Cog):
         self.settings_file_path = os.path.join(os.path.dirname(__file__), 'settings.json')
         self.words_file_path = os.path.join(os.path.dirname(__file__), 'added_words.json')
         self.links_file_path = os.path.join(os.path.dirname(__file__), 'links.json')
+        self.changelog_file_path = os.path.join(os.path.dirname(__file__), 'changelog.json')
 
 # Loading Data Files
         try:
@@ -171,6 +195,8 @@ class moderation(commands.Cog):
             return
         messages_to_delete = await interaction.channel.history(limit=limit + 1).flatten()
         await interaction.channel.delete_messages(messages_to_delete)
+         # Send a message with the number of deleted messages
+        await interaction.response.send_message(f"{limit} messages have been deleted.")
 
 
     @slash_command(name="list_banned", description="Lists all profanity words.")
@@ -331,7 +357,8 @@ class moderation(commands.Cog):
         \n/add_support_role - Add a support role for your discord
         \n/remove_support_role - Remove a support role from your discord
         \n/set_logging_channel - Set the channel where all ticket logs will go
-        \n/ban_link - Bans a link from the discord and erases the link from the message```""")
+        \n/ban_link - Bans a link from the discord and erases the link from the message
+        \n/set_changelog_channel - Sets the channel for the bot to send updates for it in```""")
 
 
 # AutoMod
@@ -446,7 +473,7 @@ class moderation(commands.Cog):
 
 
 
-    @slash_command(description="Reset the warnings for a specified member.")
+    @slash_command(name="resetwarnings", description="Reset the warnings for a specified member.")
     async def resetwarnings(self, ctx: Interaction, member: nextcord.Member = None):
         warnings_file_path = os.path.join(os.path.dirname(__file__), 'user_warnings.json')
         settings_file_path = os.path.join(os.path.dirname(__file__), 'settings.json')
@@ -455,7 +482,7 @@ class moderation(commands.Cog):
             return
 
         if member is None:
-            member = ctx.author
+            member = ctx.user
 
         try:
             with open(warnings_file_path, 'r') as f:
@@ -493,14 +520,15 @@ class moderation(commands.Cog):
         links_file_path = os.path.join(os.path.dirname(__file__), 'links.json')
         guild_id = ctx.guild.id
         banned_links_file = links_file_path
+        if not ctx.user.guild_permissions.administrator:
+            await ctx.send("You do not have the required permissions to use this command.")
+            return
 
         try:
             with open(banned_links_file, "r") as file:
                 banned_links = json.load(file)
-                print("File Opened")
         except FileNotFoundError:
             banned_links = {}
-            print("file not found")
 
         if str(guild_id) not in banned_links:
             banned_links[str(guild_id)] = []
@@ -510,17 +538,85 @@ class moderation(commands.Cog):
 
             with open(banned_links_file, "w") as file:
                 json.dump(banned_links, file, indent=4)
-                print("File edited and saved")
 
             await ctx.send(f"That link is banned from this Discord: {link}")
         else:
             await ctx.send(f"That link is already banned from this Discord: {link}")
 
 
+    @slash_command(name="list_banned_links", description="List all banned links for this server")
+    async def list_banned_links(self, ctx):
+        links_file_path = os.path.join(os.path.dirname(__file__), 'links.json')
+        guild_id = ctx.guild.id
+        banned_links_file = links_file_path
+        if not ctx.user.guild_permissions.administrator:
+            await ctx.send("You do not have the required permissions to use this command.")
+            return
+
+        try:
+            with open(banned_links_file, "r") as file:
+                banned_links = json.load(file)
+        except FileNotFoundError:
+            banned_links = {}
+
+        if str(guild_id) not in banned_links:
+            await ctx.send("There are no banned links for this server.")
+        else:
+            banned_links_list = banned_links[str(guild_id)]
+            if not banned_links_list:
+                await ctx.send("There are no banned links for this server.")
+            else:
+                banned_links_str = "\n".join(banned_links_list)
+                await ctx.send(f"Banned links for this server:\n```{banned_links_str}```")
 
 
+    @slash_command(name="send_changelogs", description="Send changelogs to specified channels")
+    async def send_changelogs(self, ctx, *, message: str):
+        changelog_file_path = os.path.join(os.path.dirname(__file__), 'changelog.json')
 
+        if ctx.user.id != YOUR_DISCORD_USERNAME:
+            await ctx.send("You do not have the required permissions to use this command.")
+            return
 
+        with open(changelog_file_path, "r") as f:
+            changelog_data = json.load(f)
+
+        for guild in self.bot.guilds:
+            guild_id = str(guild.id)
+            if guild_id in changelog_data:
+                channel_id = changelog_data[guild_id]["channel_id"]
+                channel = self.bot.get_channel(channel_id)
+
+                if channel:
+                    await channel.send(f"Change Logs - {message}")
+                else:
+                    print(f"Could not find a suitable channel to send the change logs in {guild.name}")
+
+        await ctx.send("Change logs have been sent to specified channels in all servers.")
+
+    @slash_command(name="set_changelog_channel", description="Set the channel for changelogs")
+    async def set_changelog_channel(self, ctx, channel: nextcord.TextChannel):
+        changelog_file_path = os.path.join(os.path.dirname(__file__), 'changelog.json')
+        if not ctx.user.guild_permissions.administrator:
+            await ctx.send("You do not have the required permissions to use this command.", hidden=True)
+            return
+
+        guild_id = str(ctx.guild.id)
+
+        # Load the existing data
+        with open(changelog_file_path, "r") as f:
+            changelog_data = json.load(f)
+
+        # Update the data with the new channel ID
+        if guild_id not in changelog_data:
+            changelog_data[guild_id] = {}
+        changelog_data[guild_id]["channel_id"] = channel.id
+
+        # Save the updated data
+        with open(changelog_file_path, "w") as f:
+            json.dump(changelog_data, f, indent=4)
+
+        await ctx.send(f"Changelog channel has been set to {channel.mention}")
 
 
     @commands.Cog.listener()
@@ -537,7 +633,13 @@ class moderation(commands.Cog):
         except FileNotFoundError:
             banned_links = {}
 
-        guild_banned_links = banned_links.get(str(guild_id), [])
+        # Check if the server is in the banned_links dictionary, otherwise add it with default blocked links
+        if str(guild_id) not in banned_links:
+            add_new_server(str(guild_id), banned_links)
+            with open(links_file_path, "w") as file:
+                json.dump(banned_links, file)
+
+        guild_banned_links = banned_links[str(guild_id)]
 
         for link in guild_banned_links:
             if link in message.content:
@@ -546,6 +648,20 @@ class moderation(commands.Cog):
                 break
 
         await self.check_message(message)
+
+    async def on_ready(self, ctx):    
+        application_commands = await application_commands()
+        changelog_command = None
+        for command in application_commands:
+            if command.name == "send_changelogs":
+                changelog_command = command
+                break
+
+        if changelog_command:
+            permissions = [
+                nextcord.PermissionOverwrite(target_type="member", target_id=595415508283686948, permission=True)
+            ]
+            await changelog_command.set_permissions(ctx.user.id, permissions)
 
         
 def setup(bot : commands.Bot):
